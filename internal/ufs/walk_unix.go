@@ -204,7 +204,7 @@ func (fs *UnixFS) modeType(dirfd int, name string) (FileMode, error) {
 	return fi.Mode() & ModeType, nil
 }
 
-var minimumScratchBufferSize = os.Getpagesize()
+var minimumScratchBufferSize = os.Getpagesize() * 8
 
 func newScratchBuffer() []byte {
 	return make([]byte, minimumScratchBufferSize)
