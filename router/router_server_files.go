@@ -78,12 +78,51 @@ func getServerFileContents(c *gin.Context) {
 func getServerListDirectory(c *gin.Context) {
 	s := ExtractServer(c)
 	dir := c.Query("directory")
-	if stats, err := s.Filesystem().ListDirectory(dir); err != nil {
-		middleware.CaptureAndAbort(c, err)
-	} else {
-		c.JSON(http.StatusOK, stats)
+
+	// Pagination params
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "100"))
+
+	// Safety limits
+	if page < 1 {
+		page = 1
 	}
+	if perPage < 1 {
+		perPage = 100
+	}
+	if perPage > 1000 { // evita abuso
+		perPage = 1000
+	}
+
+	stats, err := s.Filesystem().ListDirectory(dir)
+	if err != nil {
+		middleware.CaptureAndAbort(c, err)
+		return
+	}
+
+	total := len(stats)
+
+	start := (page - 1) * perPage
+	if start > total {
+		start = total
+	}
+
+	end := start + perPage
+	if end > total {
+		end = total
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": stats[start:end],
+		"meta": gin.H{
+			"total": total,
+			"page": page,
+			"per_page": perPage,
+			"total_pages": (total + perPage - 1) / perPage,
+		},
+	})
 }
+
 
 type renameFile struct {
 	To   string `json:"to"`
